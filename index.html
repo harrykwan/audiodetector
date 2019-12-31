@@ -1,0 +1,116 @@
+<html>
+    <head>
+        <script src="p5.js"></script>
+        <script src="sound.js"></script>
+    </head>
+    <body>
+        <h1>Live Detector</h1>
+        <button onclick="startaudio()">Start</button>
+        <button onclick="nextonedownload()">start record</button>
+        <button onclick="nextonestop()">stop record</button>
+        <div id="outputarea"></div>
+
+        <script>
+            let mic, fft;
+
+            
+            function setup() {
+                createCanvas(710, 400);
+                noFill();
+                mic = new p5.AudioIn();
+                mic.start();
+                fft = new p5.FFT();
+                fft.setInput(mic);
+            }
+
+            var finalspectrumlist = '';
+            function draw() {
+                background(200);
+
+                let spectrum = fft.analyze();
+
+                beginShape();
+
+                // console.log(spectrum)
+
+                if (nextonedown){
+                  finalspectrumlist += spectrum + '\n'
+                  
+                } else {
+                    finalspectrumlist = ''
+                }
+
+
+                var freqcount = [];
+                for (var j=0; j<=1024; j++){
+                    freqcount[j] = 0;
+                }
+
+
+                for (i = 0; i < spectrum.length; i++) {
+                    vertex(i, map(spectrum[i], 0, 255, height, 0));
+                    freqcount[spectrum[i]]++;
+                }
+
+
+                var ans = [];
+                console.log(freqcount)
+                for (var j=0; j<20; j++){
+                    var max = -1;
+                    for (i = 0; i < spectrum.length; i++) {
+                        if (!ans.includes(i)){
+                            if ((freqcount[spectrum[i]]>freqcount[max])||(max==-1&&freqcount[i]>0)){
+                                max = i;
+                            }
+                        }
+                    }
+                    if (max!=-1){
+                        ans.push(max)
+                        console.log(max+' '+freqcount[max])
+                    }
+                   
+                }
+
+                console.log(ans)
+                
+                // document.getElementById("outputarea").innerHTML = '';
+                // for (var j=0; j<ans.length; j++){
+                //     document.getElementById("outputarea").innerHTML += freqcountcpy[ans[j]] + '<br>';
+                // }
+
+
+                endShape();
+            }
+
+            function download(filename, text) {
+                var element = document.createElement('a');
+                element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+                element.setAttribute('download', filename);
+
+                element.style.display = 'none';
+                document.body.appendChild(element);
+
+                element.click();
+
+                document.body.removeChild(element);
+            }
+
+            nextonedown = 0
+            function nextonedownload(){
+                nextonedown = 1
+
+            }
+
+            function nextonestop(){
+                nextonedown = 0
+                download('frequency.txt',finalspectrumlist)
+            }
+            
+            function startaudio(){
+                getAudioContext().resume()
+            }
+
+        </script>
+    </body>
+</html>
+
