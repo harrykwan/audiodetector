@@ -3,6 +3,7 @@
 <head>
     <script src="p5.js"></script>
     <script src="sound.js"></script>
+    <script src="https://unpkg.com/ml5@0.4.3/dist/ml5.min.js"></script>
 </head>
 
 <body>
@@ -10,7 +11,13 @@
     <button onclick="startaudio()">Start</button>
     <button onclick="nextonedownload()">start record</button>
     <button onclick="nextonestop()">stop record</button>
-    <div id="outputarea"></div>
+    <button onclick="recordbg()">record background</button>
+    <button onclick="stoprecordbg()">stop record background</button>
+    <!-- <input id="jsonfileinput" type="file" /> -->
+    <button onclick="loadfile()">Load Modal</button>
+    <div id="outputarea">
+
+    </div>
 
     <script>
         let mic, fft, peakDetect, amplitude;
@@ -19,10 +26,14 @@
         var nowamp, locallowamp = 0,
             localhighamp = 0,
             oldamp;
-        var myframe = [];
+        var myframe = []; //volumn
         var myframelength = 20;
         var myframetotal = 0;
         var ampslope = 0;
+        var nowchord;
+        var recordingbg = 0;
+
+        // var smoothframelength = 5;
 
         function setup() {
             createCanvas(710, 400);
@@ -31,7 +42,7 @@
             mic.start();
             fft = new p5.FFT();
             fft.setInput(mic);
-            // peakDetect = new p5.PeakDetect();
+            peakDetect = new p5.PeakDetect();
             amplitude = new p5.Amplitude();
             amplitude.setInput(mic)
             nowamp = 0;
@@ -39,7 +50,7 @@
 
         function checksound() {
             let spectrum = fft.analyze();
-            // peakDetect.update(fft);
+            peakDetect.update(fft);
             // if (peakDetect.isDetected) {
             //     console.count('peak')
             // } else {
@@ -47,37 +58,90 @@
             // }
             beginShape();
 
-            let sortfreq = []
+            // let sortfreq = []
+            // var smoothfreq = []
+            // var smoothframetotal = 0;
+            // var smoothfreqframe = []
             for (i = 0; i < spectrum.length; i++) {
-                const tempfreq = 1125 * Math.log(1 + spectrum[i] / 700)
-                spectrum[i] = tempfreq
-                const tempfreqjson = {
-                    index: i,
-                    value: tempfreq
-                }
-                sortfreq.push(tempfreqjson)
+                // const tempfreq = 1125 * Math.log(1 + spectrum[i] / 700)
+
+
+                // smoothframetotal += spectrum[i]
+                // smoothfreqframe.push(spectrum[i])
+
+                // if (smoothfreqframe.length > smoothframelength) {
+                //     smoothframetotal -= smoothfreqframe.shift()
+                // }
+
+                // if (i >= smoothframelength) {
+                //     smoothfreq.push(smoothframetotal)
+                //     // vertex(i, map(smoothfreq[i], 0, 255, height, 0));
+                // }
+
+                // spectrum[i] = tempfreq
+                // const tempfreqjson = {
+                //     index: i,
+                //     value: tempfreq
+                // }
+                // sortfreq.push(tempfreqjson)
                 vertex(i, map(spectrum[i], 0, 255, height, 0));
+
             }
 
 
-            sortfreq.sort(function (x, y) {
-                if (x.value > y.value)
-                    return -1
-                else if (x.value < y.value)
-                    return 1
-                else
-                    return 0
-            })
+            // sortfreq.sort(function (x, y) {
+            //     if (x.value > y.value)
+            //         return -1
+            //     else if (x.value < y.value)
+            //         return 1
+            //     else
+            //         return 0
+            // })
 
-            // console.log(sortfreq)
-            // console.log(spectrum)
+
+
+            // var finalfreq = [];
+            // for (var j = 0; j < sortfreq.length / 2; j++) {
+            //     finalfreq.push(sortfreq[j].index)
+            // }
+
 
             var finalfreq = [];
-            for (var j = 0; j < sortfreq.length / 2; j++) {
-                finalfreq.push(sortfreq[j].index)
+            for (var j = 0 + 1; j < spectrum.length; j++) {
+                finalfreq.push(spectrum[j] - spectrum[j - 1])
+                // finalfreq.push(smoothfreq[j] - smoothfreq[j - 1])
             }
 
-            console.log(finalfreq)
+            // console.log(finalfreq)
+            if (starttraining) {
+                addknn(finalfreq, nowchord)
+            } else if (recordingbg) {
+                addknn(finalfreq, 'bg')
+            } else {
+                testknn(finalfreq, function (result) {
+                    if (result) {
+                        const confi = result.confidencesByLabel;
+                        var tablecontent = ''
+                        for (var j in confi) {
+                            tablecontent += "<tr>"
+                            tablecontent += "<td>"
+                            tablecontent += j
+                            tablecontent += "</td>"
+                            tablecontent += "<td>"
+                            tablecontent += confi[j]
+                            tablecontent += "</td>"
+                            tablecontent += "</tr>"
+                        }
+                        document.getElementById('outputarea').innerHTML = "<h1 style='margin: 10px;'>" +
+                            result
+                            .label +
+                            "</h1>" + "<table>" + tablecontent + "</table>";
+                        console.log(result)
+                    }
+                })
+
+
+            }
 
             // document.getElementById("outputarea").innerHTML = '';
             // for (var j=0; j<ans.length; j++){
@@ -105,7 +169,7 @@
                 if (oldamp > nowamp) {
                     locallowamp = nowamp
                     if (ampslope == 0 || ampslope == 1) {
-                        if (localhighamp - locallowamp > 3) {
+                        if (localhighamp - locallowamp > 3 || peakDetect.isDetected) {
                             checksound()
                         }
                     }
@@ -119,7 +183,9 @@
                 oldamp = nowamp;
             }
 
-            // checksound()
+            if (recordingbg)
+                checksound()
+
 
         }
 
@@ -136,20 +202,71 @@
             document.body.removeChild(element);
         }
 
-        nextonedown = 0
+
+
+
+        const knnClassifier = ml5.KNNClassifier();
+
+
+        var starttraining = 0
 
         function nextonedownload() {
-            nextonedown = 1
+            nowchord = prompt("Chord?", '')
+            if (!nowchord)
+                return
+            starttraining = 1;
+        }
 
+        function recordbg() {
+            recordingbg = 1;
+        }
+
+        function stoprecordbg() {
+            recordingbg = 0;
         }
 
         function nextonestop() {
-            nextonedown = 0
-            download('frequency.txt', finalspectrumlist)
+            starttraining = 0;
         }
 
         function startaudio() {
             getAudioContext().resume()
+        }
+
+        function loadfile() {
+            // if (document.getElementById("jsonfileinput").files[0]) {
+            //     loadknn(document.getElementById("jsonfileinput").files[0], function () {
+            //         alert('ok')
+            //     })
+            // }
+            const myfile = prompt("file location: ", "");
+            if (myfile) {
+                loadknn(myfile, function () {
+                    alert('ok')
+                })
+            }
+
+        }
+
+
+        function loadknn(x, callback) {
+            knnClassifier.load(x, callback);
+
+        }
+
+        function saveknn(x) {
+            knnClassifier.save(x);
+        }
+
+        function addknn(features, label) {
+            knnClassifier.addExample(features, label);
+        }
+
+        function testknn(x, callback) {
+            // Use KNN Classifier to classify these features
+            knnClassifier.classify(x, (err, result) => {
+                callback(result); // result.label is the predicted label
+            });
         }
     </script>
 </body>
