@@ -4,6 +4,38 @@
     <script src="p5.js"></script>
     <script src="sound.js"></script>
     <script src="https://unpkg.com/ml5@0.4.3/dist/ml5.min.js"></script>
+    <!-- The core Firebase JS SDK is always required and must be listed first -->
+    <script src="https://www.gstatic.com/firebasejs/7.14.2/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/7.14.2/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/7.14.2/firebase-firestore.js"></script>
+
+    <script src="https://www.gstatic.com/firebasejs/7.14.2/firebase-storage.js"></script>
+
+    <!-- TODO: Add SDKs for Firebase products that you want to use
+     https://firebase.google.com/docs/web/setup#available-libraries -->
+    <script src="https://www.gstatic.com/firebasejs/7.14.2/firebase-analytics.js"></script>
+
+    <script>
+        // Your web app's Firebase configuration
+        var firebaseConfig = {
+            apiKey: "AIzaSyC7bS7WoYbt3F2QlmfGYLtZCkixmK3y-1U",
+            authDomain: "chord-detection.firebaseapp.com",
+            databaseURL: "https://chord-detection.firebaseio.com",
+            projectId: "chord-detection",
+            storageBucket: "chord-detection.appspot.com",
+            messagingSenderId: "488310021909",
+            appId: "1:488310021909:web:881744564644e39f2fd31c",
+            measurementId: "G-FPDSW2D35X"
+        };
+        // Initialize Firebase
+        firebase.initializeApp(firebaseConfig);
+        firebase.analytics();
+        var db = firebase.firestore();
+        var storage = firebase.storage();
+        var storageRef = storage.ref();
+    </script>
+
+
 </head>
 
 <body>
@@ -13,11 +45,48 @@
     <button onclick="nextonestop()">stop record</button>
     <button onclick="recordbg()">record background</button>
     <button onclick="stoprecordbg()">stop record background</button>
+    <br>
     <!-- <input id="jsonfileinput" type="file" /> -->
+    <button onclick="savefile()">Save Modal</button>
     <button onclick="loadfile()">Load Modal</button>
     <div id="outputarea">
 
     </div>
+
+
+    <script>
+        var knnClassifier = ml5.KNNClassifier();
+
+        function loaddatabase(x) {
+            var docRef = db.collection("ml5model").doc(x);
+
+            var getOptions = {
+                source: 'default'
+            };
+
+            docRef.get(getOptions).then(function (doc) {
+                console.log(" document data:", doc.data());
+                const tempdatabase = JSON.parse(doc.data().data)
+                // const tempdatabase = doc.data().data
+                knnClassifier.load(tempdatabase)
+            }).catch(function (error) {
+                console.log("Error getting cached document:", error);
+            });
+        }
+
+        function savetodatabase(x, data) {
+            db.collection("ml5model").doc(x).set({
+                    data: data
+                })
+                .then(function () {
+                    console.log("Document successfully written!");
+                })
+                .catch(function (error) {
+                    console.error("Error writing document: ", error);
+                });
+
+        }
+    </script>
 
     <script>
         let mic, fft, peakDetect, amplitude;
@@ -34,6 +103,7 @@
         var recordingbg = 0;
 
         // var smoothframelength = 5;
+
 
         function setup() {
             createCanvas(710, 400);
@@ -205,7 +275,7 @@
 
 
 
-        const knnClassifier = ml5.KNNClassifier();
+
 
 
         var starttraining = 0
@@ -234,16 +304,46 @@
         }
 
         function loadfile() {
-            // if (document.getElementById("jsonfileinput").files[0]) {
-            //     loadknn(document.getElementById("jsonfileinput").files[0], function () {
+            const myfile = prompt("file name: ", "");
+            // if (myfile) {
+            //     loadknn(myfile, function () {
             //         alert('ok')
             //     })
             // }
-            const myfile = prompt("file location: ", "");
+            if (myfile)
+                loaddatabase(myfile)
+        }
+
+
+        function savefile() {
+            const myfile = prompt("file name: ", "");
+
+
             if (myfile) {
-                loadknn(myfile, function () {
-                    alert('ok')
-                })
+                // const nowknn = JSON.stringify(knnClassifier)
+                knnClassifier.save(myfile)
+
+                // const dataset = knnClassifier.getClassifierDataset();
+                // if (knnClassifier.mapStringToIndex.length > 0) {
+                //     Object.keys(dataset).forEach((key) => {
+                //         if (knnClassifier.mapStringToIndex[key]) {
+                //             dataset[key].label = knnClassifier.mapStringToIndex[key];
+                //         }
+                //     });
+                // }
+                // const tensors = Object.keys(dataset).map((key) => {
+                //     const t = dataset[key];
+                //     if (t) {
+                //         return t.dataSync();
+                //     }
+                //     return null;
+                // });
+
+                // const finaldata = (JSON.stringify({
+                //     dataset,
+                //     tensors
+                // }));
+                // savetodatabase(myfile, finaldata)
             }
 
         }
@@ -255,11 +355,11 @@
         }
 
         function saveknn(x) {
-            knnClassifier.save(x);
+            return knnClassifier.save(x);
         }
 
         function addknn(features, label) {
-            knnClassifier.addExample(features, label);
+            return knnClassifier.addExample(features, label);
         }
 
         function testknn(x, callback) {
