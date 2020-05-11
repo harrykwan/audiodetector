@@ -3,7 +3,7 @@
 <head>
     <script src="p5.js"></script>
     <script src="sound.js"></script>
-    <script src="https://unpkg.com/ml5@0.4.3/dist/ml5.min.js"></script>
+    <script src="https://unpkg.com/ml5@0.5.0/dist/ml5.min.js"></script>
     <!-- The core Firebase JS SDK is always required and must be listed first -->
     <script src="https://www.gstatic.com/firebasejs/7.14.2/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/7.14.2/firebase-app.js"></script>
@@ -14,7 +14,7 @@
     <!-- TODO: Add SDKs for Firebase products that you want to use
      https://firebase.google.com/docs/web/setup#available-libraries -->
     <script src="https://www.gstatic.com/firebasejs/7.14.2/firebase-analytics.js"></script>
-
+    <script src="testing.js"></script>
     <script>
         // Your web app's Firebase configuration
         var firebaseConfig = {
@@ -56,6 +56,8 @@
 
     <script>
         var knnClassifier = ml5.KNNClassifier();
+
+        var allsample = {} || allsample
 
         function loaddatabase(x) {
             var docRef = db.collection("ml5model").doc(x);
@@ -285,10 +287,17 @@
             if (!nowchord)
                 return
             starttraining = 1;
+            if (allsample[nowchord] == undefined) {
+                console.log('reset')
+                allsample[nowchord] = []
+            }
         }
 
         function recordbg() {
             recordingbg = 1;
+            if (allsample['bg'] == undefined) {
+                allsample['bg'] = [];
+            }
         }
 
         function stoprecordbg() {
@@ -304,15 +313,40 @@
         }
 
         function loadfile() {
-            const myfile = prompt("file name: ", "");
+            // const myfile = prompt("file name: ", "");
             // if (myfile) {
             //     loadknn(myfile, function () {
             //         alert('ok')
             //     })
             // }
-            if (myfile)
-                loaddatabase(myfile)
+            // if (myfile)
+            //     loaddatabase(myfile)
+
+            if (readjsfile) {
+                for (var j in readjsfile) {
+                    for (var k = 0; k < readjsfile[j].length; k++) {
+                        knnClassifier.addExample(readjsfile[j][k].split(',').map(x => +x), j)
+                    }
+
+                }
+            }
         }
+
+        function download(filename, text) {
+            var element = document.createElement('a');
+            element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+            element.setAttribute('download', filename);
+
+            element.style.display = 'none';
+            document.body.appendChild(element);
+
+            element.click();
+
+            document.body.removeChild(element);
+        }
+
+
+
 
 
         function savefile() {
@@ -321,7 +355,10 @@
 
             if (myfile) {
                 // const nowknn = JSON.stringify(knnClassifier)
-                knnClassifier.save(myfile)
+
+                download(myfile + '.js', 'var readjsfile = ' + JSON.stringify(allsample))
+                // knnClassifier.save(myfile)
+
 
                 // const dataset = knnClassifier.getClassifierDataset();
                 // if (knnClassifier.mapStringToIndex.length > 0) {
@@ -358,7 +395,10 @@
             return knnClassifier.save(x);
         }
 
+
         function addknn(features, label) {
+            allsample[label].push(features.join(','))
+            console.log(allsample)
             return knnClassifier.addExample(features, label);
         }
 
