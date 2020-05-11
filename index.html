@@ -57,7 +57,8 @@
     <script>
         var knnClassifier = ml5.KNNClassifier();
 
-        var allsample = {} || allsample
+        // var allsample = {} || allsample
+        var tempsample = []
 
         function loaddatabase(x) {
             var docRef = db.collection("ml5model").doc(x);
@@ -287,25 +288,29 @@
             if (!nowchord)
                 return
             starttraining = 1;
-            if (allsample[nowchord] == undefined) {
-                console.log('reset')
-                allsample[nowchord] = []
-            }
+            tempsample = []
+            // if (allsample[nowchord] == undefined) {
+            //     console.log('reset')
+            //     allsample[nowchord] = []
+            // }
         }
 
         function recordbg() {
             recordingbg = 1;
-            if (allsample['bg'] == undefined) {
-                allsample['bg'] = [];
-            }
+            tempsample = []
+            // if (allsample['bg'] == undefined) {
+            //     allsample['bg'] = [];
+            // }
         }
 
         function stoprecordbg() {
             recordingbg = 0;
+            download('bg' + '.js', 'var file_' + 'bg' + ' = ' + JSON.stringify(tempsample))
         }
 
         function nextonestop() {
             starttraining = 0;
+            download(nowchord + '.js', 'var file_' + nowchord + ' = ' + JSON.stringify(tempsample))
         }
 
         function startaudio() {
@@ -356,7 +361,7 @@
             if (myfile) {
                 // const nowknn = JSON.stringify(knnClassifier)
 
-                download(myfile + '.js', 'var readjsfile = ' + JSON.stringify(allsample))
+                download(myfile + '.js', 'var readjsfile = ' + JSON.stringify(tempsample))
                 // knnClassifier.save(myfile)
 
 
@@ -397,8 +402,10 @@
 
 
         function addknn(features, label) {
-            allsample[label].push(features.join(','))
-            console.log(allsample)
+            // allsample[label].push(features.join(','))
+            // console.log(allsample)
+            console.log(label)
+            tempsample.push(features.join(','))
             return knnClassifier.addExample(features, label);
         }
 
