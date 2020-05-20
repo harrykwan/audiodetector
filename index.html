@@ -305,12 +305,12 @@
 
         function stoprecordbg() {
             recordingbg = 0;
-            download('bg' + '.js', 'var file_' + 'bg' + ' = ' + JSON.stringify(tempsample))
+            download('bg' + '.json',  JSON.stringify(tempsample))
         }
 
         function nextonestop() {
             starttraining = 0;
-            download(nowchord + '.js', 'var file_' + nowchord + ' = ' + JSON.stringify(tempsample))
+            download(nowchord + '.json', JSON.stringify(tempsample))
         }
 
         function startaudio() {
